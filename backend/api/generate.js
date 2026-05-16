@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
     const { url, method, headers, body } = req.body;
     
     // Bảo mật: Chỉ cho phép gọi đến đúng domain của Google Flow
-    if (!url.includes('labs.google/fx')) {
+    if (!url.includes('labs.google/fx') && !url.includes('aisandbox-pa.googleapis.com')) {
       return res.status(400).json({ error: 'Invalid Target URL' });
     }
 
