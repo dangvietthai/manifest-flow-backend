@@ -36,8 +36,18 @@ module.exports = async (req, res) => {
     }
     const idToken = authHeader.split('Bearer ')[1];
     
-    // Giải mã token để lấy UID
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    // Giải mã token để lấy UID (Bọc try-catch để bắt mọi lỗi xác thực bao gồm hết hạn hoặc sai định dạng)
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(idToken);
+    } catch (authError) {
+      console.error('Firebase Auth Verification Error:', authError);
+      return res.status(401).json({ 
+        error: 'TOKEN_EXPIRED', 
+        message: 'Firebase ID token is invalid or expired. Please refresh token.',
+        code: authError.code 
+      });
+    }
     const uid = decodedToken.uid;
 
     // 3. Kiểm tra trạng thái PRO trong Firestore
@@ -81,7 +91,7 @@ module.exports = async (req, res) => {
     const { url, method, headers, body } = req.body;
     
     // Bảo mật: Chỉ cho phép gọi đến đúng domain của Google Flow
-    if (!url.includes('labs.google/fx')) {
+    if (!url.includes('labs.google/fx') && !url.includes('aisandbox-pa.googleapis.com')) {
       return res.status(400).json({ error: 'Invalid Target URL' });
     }
 
@@ -96,6 +106,9 @@ module.exports = async (req, res) => {
 
   } catch (error) {
     console.error('Vercel Proxy Error:', error);
+    if (error.code === 'auth/id-token-expired') {
+      return res.status(401).json({ error: 'TOKEN_EXPIRED', message: 'Firebase ID token has expired. Please refresh token.' });
+    }
     return res.status(500).json({ error: 'Server Error', details: error.message });
   }
 };
